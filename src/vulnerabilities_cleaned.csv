@@ -1,4 +1,4 @@
-id,Description,Insecure Code,Secure Code
+id,description,insecure_code,secure_code
 0,"The vulnerability arises from missing a signer check for an account, which could allow unauthorized actions.","
 authority: AccountInfo<'info>,
 ","

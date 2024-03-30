@@ -2,9 +2,10 @@ from txtai.embeddings import Embeddings
 import csv
 import json
 
+
 def get_vulnerabilities():
     # The path to your CSV file
-    csv_file_path = 'vulnerabilities.csv'
+    csv_file_path = 'vulnerabilities_cleaned.csv'
 
     # Initialize an empty list to hold the JSON structure
     json_list = []
@@ -20,9 +21,9 @@ def get_vulnerabilities():
                 # Convert the current row to a dictionary, and add an 'id' field
                 row_dict = {
                     'id': idx,
-                    'code_snippet': row['code_snippet'],
+                    'secure_code': row['secure_code'],
                     'description': row['description'],
-                    'mitigation': row['mitigation']
+                    'secure_code': row['secure_code']
                 }
 
                 json_list.append(row_dict)
@@ -43,7 +44,7 @@ def main():
     # Concatenate the fields and index the documents
     for item in data:
         # Create a single text string for each document
-        document_text = f"Code Snippet: {item['code_snippet']} Description: {item['description']} Mitigation: {item['mitigation']}"
+        document_text = f"Code Snippet: {item['secure_code']} Description: {item['description']} secure_code: {item['secure_code']}"
 
         print(document_text)
 
