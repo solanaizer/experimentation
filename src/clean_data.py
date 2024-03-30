@@ -52,7 +52,7 @@ def main():
         except:
             print("some issue occured: " + str(i))
 
-    csv_file_name = 'vulnerabilities_cleaned.csv'
+    csv_file_name = 'vulnerabilities_cleaned_3_chatgpt_4.csv'
 
     with open(csv_file_name, mode='w', newline='', encoding='utf-8') as csvfile:
         # Create a CSV writer object
@@ -137,7 +137,7 @@ def clean_data(description, insecure_code, secure_code):
     problem. Think clearly and ensure that the final code does not resemble what we started with. Remove things which
     are not needed. Including parts necessary to make the code compile, after all this will just be used for 
     Retrieval Augmented Generation.
-    
+        
     Only reply with:
     
     1. Vulnerability Description:
@@ -168,7 +168,7 @@ def clean_data(description, insecure_code, secure_code):
     """
 
     chat_request = ChatRequest(
-        model="gpt-3.5-turbo",
+        model="gpt-4-turbo-preview",
         messages=[{"role": "user", "content": prompt}]
     )
 

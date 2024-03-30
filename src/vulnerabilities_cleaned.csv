@@ -1,748 +1,126 @@
 Description,Insecure Code,Secure Code
-The account is missing a signer check.,"```rs
-pub mod signer_authorization_insecure {
-    use super::*;
-    
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        msg!(""GM {}"", ctx.accounts.authority.key().to_string());
-        Ok(())
+"The vulnerability arises from missing a signer check for an account, which could allow unauthorized actions.","
+authority: AccountInfo<'info>,
+","
+authority: Signer<'info>,
+"
+"The insecure code fails to properly check that the caller is the owner of the token before proceeding with operations, leading to a potential vulnerability where unauthorized users could interact with the contract as if they were the owner.","
+if authority.key != token.owner {
+    return Err(ProgramError::InvalidAccountData);
+}
+","
+#[account(constraint = authority.key == &token.owner)]
+"
+"The vulnerability arises from the use of incorrect `seeds` for generating a Program Derived Address (PDA), thereby potentially allowing unauthorized token withdrawal or interaction with the wrong PDA.","
+let seeds = &[ctx.accounts.pool.mint.as_ref(), &[ctx.accounts.pool.bump]];
+","
+let seeds = &[ctx.accounts.pool.withdraw_destination.as_ref(), &[ctx.accounts.pool.bump]];
+"
+"The vulnerability involves incorrect seed canonicalization when creating a program address. Insecure code uses a provided `bump` seed that might not match the bump seed calculated by the Solana runtime, leading to potential bypass of security checks or other unintended behaviors.","
+if address != ctx.accounts.data.key() {
+    return Err(ProgramError::InvalidArgument);
+}
+","
+let (_, expected_bump) = Pubkey::find_program_address(&[key.to_le_bytes().as_ref()], ctx.program_id);
+if expected_bump != bump {
+    return Err(ProgramError::InvalidArgument);
+}
+"
+"The ""TypeCosplay"" vulnerability involves the absence of a check to ensure an account's data matches the expected account type or discriminant, allowing an attacker to pass an account of an incorrect type.","
+if ctx.accounts.user.owner != ctx.program_id {
+    return Err(ProgramError::IllegalOwner);
+}
+","
+if ctx.accounts.user.owner != ctx.program_id {
+    return Err(ProgramError::IllegalOwner);
+}
+if user.discriminant != AccountDiscriminant::User {
+    return Err(ProgramError::InvalidAccountData);
+}
+"
+DuplicateMutableAccounts,"
+let user_a = &mut ctx.accounts.user_a;
+let user_b = &mut ctx.accounts.user_b;
+","
+if ctx.accounts.user_a.key() == ctx.accounts.user_b.key() {
+    return Err(ProgramError::InvalidArgument)
+}
+let user_a = &mut ctx.accounts.user_a;
+let user_b = &mut ctx.accounts.user_b;
+"
+"The vulnerability arises from not verifying if an account provided as 'authority' in a Solana smart contract function has actually signed the transaction, potentially allowing unauthorized actions.","
+msg!(""GM {}"", authority.key().to_string());
+","
+if !authority.is_signer {
+    return Err(ProgramError::MissingRequiredSignature);
+}
+msg!(""GM {}"", authority.key().to_string());
+"
+Not verifying if an account provided to a smart contract is the expected system account could lead to malicious actors exploiting the contract by providing incorrect accounts. This issue is particularly critical when dealing with system accounts like the Rent sysvar in Solana.,"
+msg!(""Rent Key -> {}"", rent.key().to_string());
+","
+require_eq!(rent.key(), sysvar::rent::ID);
+msg!(""Rent Key -> {}"", rent.key().to_string());
+"
+"The vulnerability arises from not properly validating the owner of a token account in smart contracts, which could allow unauthorized access to sensitive actions or information.","
+if authority.key != &token.owner {
+    return Err(ProgramError::InvalidAccountData);
+}
+","
+if token.owner != &spl_token::ID {
+    return Err(ProgramError::InvalidAccountData);
+}
+if authority.key != &token.owner {
+    return Err(ProgramError::InvalidAccountData);
+}
+"
+"The vulnerability arises from not checking if the called program in a Cross-Program Invocation (CPI) is the intended one, allowing potential arbitrary executions by malicious actors.","
+fn cpi(token_program: AccountInfo, source: AccountInfo, destination: AccountInfo, authority: AccountInfo, amount: u64) {
+    invoke(&transfer(token_program.key, source.key, destination.key, authority.key, &[], amount), &[source, destination, authority]);
+}
+","
+fn cpi_secure(token_program: AccountInfo, source: AccountInfo, destination: AccountInfo, authority: AccountInfo, amount: u64) {
+    if &TOKEN_PROGRAM_ID != token_program.key {
+        panic!(""Incorrect program ID"");
     }
+    invoke(&transfer(token_program.key, source.key, destination.key, authority.key, &[], amount), &[source, destination, authority]);
 }
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    authority: AccountInfo<'info>,
+"
+"The vulnerability revolves around a smart contract's improper account closure process. The insecure code fails to properly zero out the data of a closed account, leaving residual data that could be potentially exploited or lead to inconsistent state representations. Ensuring the data of an account is cleared and marked with a discriminator indicating closure is crucial for security and data integrity.","
+let dest_starting_lamports = destination.lamports();
+*destination.lamports.borrow_mut() = dest_starting_lamports.checked_add(account.lamports()).unwrap();
+*account.lamports.borrow_mut() = 0;
+","
+let dest_starting_lamports = destination.lamports();
+*destination.lamports.borrow_mut() = dest_starting_lamports.checked_add(account.lamports()).unwrap();
+*account.lamports.borrow_mut() = 0;
+let mut data = account.try_borrow_mut_data()?;
+for byte in data.iter_mut() {
+    *byte = 0;
 }
-```","```rs
-#[program]
-pub mod signer_authorization_recommended {
-    use super::*;
-    
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        msg!(""GM {}"", ctx.accounts.authority.key().to_string());
-        Ok(())
+let mut cursor = Cursor::new(&mut data);
+cursor.write_all(&CLOSED_ACCOUNT_DISCRIMINATOR).unwrap();
+"
+"The vulnerability is related to the improper initialization of smart contracts, allowing for the possibility of reinitialization attacks, where an attacker might reinitialize already initialized accounts, or create and not properly initialize accounts, potentially compromising the contract's security.","
+let mut user = User::try_from_slice(&data).unwrap();
+user.authority = authority;
+user.serialize(&mut data).unwrap();
+","
+let mut user = User::try_from_slice(&data).unwrap();
+if user.discriminator {
+    return Err(ProgramError::InvalidAccountData);
+}
+user.authority = authority;
+user.discriminator = true;
+user.serialize(&mut data).unwrap();
+"
+"The vulnerability arises from not verifying if The caller (authority) is The actual owner of The token account prior to executing actions or revealing sensitive information, which can lead to unauthorized access or information disclosure.","
+    let token = SplTokenAccount::unpack(&token.data.borrow())?;
+    msg!(""Your account balance is: {}"", token.amount);
+    ","
+    let token = SplTokenAccount::unpack(&token.data.borrow())?;
+    if authority.key != &token.owner {
+        return Err(ProgramError::InvalidAccountData);
     }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    authority: Signer<'info>,
-}
-```"
-MissingOwnerCheck,"```rs
-#[program] pub mod owner_checks_insecure { use super::*; pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult { let token = SplTokenAccount::unpack(&ctx.accounts.token.data.borrow())?; if ctx.accounts.authority.key != &token.owner { return Err(ProgramError::InvalidAccountData); } msg!(""Your account balance is: {}"", token.amount); Ok(()) } } #[derive(Accounts)] pub struct LogMessage<'info> { token: AccountInfo<'info>, authority: Signer<'info>, }
-```","```rs
-#[program] pub mod owner_checks_recommended { use super::*; pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult { msg!(""Your account balance is: {}"", ctx.accounts.token.amount); Ok(()) } } #[derive(Accounts)] pub struct LogMessage<'info> { #[account(constraint = authority.key == &token.owner)] token: Account<'info, TokenAccount>, authority: Signer<'info>, }
-```"
-"Incorrect reference to the `withdraw_destination` in the seeds array, using `ctx.accounts.pool.mint.as_ref()` instead of `ctx.accounts.pool.withdraw_destination.as_ref()`.","```rs
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod pda_sharing_insecure {
-    use super::*;
-
-    pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> ProgramResult {
-        let amount = ctx.accounts.vault.amount;
-        let seeds = &[ctx.accounts.pool.mint.as_ref(), &[ctx.accounts.pool.bump]];
-        token::transfer(ctx.accounts.transfer_ctx().with_signer(&[seeds]), amount)
-    }
-}
-
-#[derive(Accounts)]
-pub struct WithdrawTokens<'info> {
-    #[account(has_one = vault, has_one = withdraw_destination)]
-    pool: Account<'info, TokenPool>,
-    vault: Account<'info, TokenAccount>,
-    withdraw_destination: Account<'info, TokenAccount>,
-    authority: Signer<'info>,
-    token_program: Program<'info, Token>,
-}
-
-impl<'info> WithdrawTokens<'info> {
-    pub fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
-        let program = self.token_program.to_account_info();
-        let accounts = token::Transfer {
-            from: self.vault.to_account_info(),
-            to: self.withdraw_destination.to_account_info(),
-            authority: self.authority.to_account_info(),
-        };
-        CpiContext::new(program, accounts)
-    }
-}
-
-#[account]
-pub struct TokenPool {
-    vault: Pubkey,
-    mint: Pubkey,
-    withdraw_destination: Pubkey,
-    bump: u8,
-}
-```","```rs
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod pda_sharing_secure {
-    use super::*;
-
-    pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> ProgramResult {
-        let amount = ctx.accounts.vault.amount;
-        let seeds = &[ctx.accounts.pool.withdraw_destination.as_ref(), &[ctx.accounts.pool.bump]];
-        token::transfer(ctx.accounts.transfer_ctx().with_signer(&[seeds]), amount)
-    }
-}
-
-#[derive(Accounts)]
-pub struct WithdrawTokens<'info> {
-    #[account(has_one = vault, has_one = withdraw_destination)]
-    pool: Account<'info, TokenPool>,
-    vault: Account<'info, TokenAccount>,
-    withdraw_destination: Account<'info, TokenAccount>,
-    authority: Signer<'info>,
-    token_program: Program<'info, Token>,
-}
-
-impl<'info> WithdrawTokens<'info> {
-    pub fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, token::Transfer<'info>> {
-        let program = self.token_program.to_account_info();
-        let accounts = token::Transfer {
-            from: self.vault.to_account_info(),
-            to: self.withdraw_destination.to_account_info(),
-            authority: self.authority.to_account_info(),
-        };
-        CpiContext::new(program, accounts)
-    }
-}
-
-#[account]
-pub struct TokenPool {
-    vault: Pubkey,
-    mint: Pubkey,
-    withdraw_destination: Pubkey,
-    bump: u8,
-}
-```"
-BumpSeedCanonicalization vulnerability allows manipulation of data by using a predictable bump seed.,"```rs
-use anchor_lang::prelude::*;
-#[program]
-pub mod bump_seed_canonicalization_insecure {
-    use super::*;
-
-    pub fn set_value(ctx: Context<BumpSeed>, key: u64, new_value: u64, bump: u8) -> ProgramResult {
-        let address = Pubkey::create_program_address(&[key.to_le_bytes().as_ref(), &[bump]], ctx.program_id)?;
-
-        if address != ctx.accounts.data.key() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        ctx.accounts.data.value = new_value;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct BumpSeed<'info> {
-    data: Account<'info, Data>,
-}
-
-#[account]
-pub struct Data {
-    value: u64,
-}
-```","```rs
-use anchor_lang::prelude::*;
-#[program]
-pub mod bump_seed_canonicalization_secure {
-    use super::*;
-
-    pub fn set_value_secure(ctx: Context<BumpSeed>, key: u64, new_value: u64, bump: u8) -> ProgramResult {
-        let (address, expected_bump) = Pubkey::find_program_address(&[key.to_le_bytes().as_ref()], ctx.program_id);
-
-        if address != ctx.accounts.data.key() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        if expected_bump != bump {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        ctx.accounts.data.value = new_value;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct BumpSeed<'info> {
-    data: Account<'info, Data>,
-}
-
-#[account]
-pub struct Data {
-    value: u64,
-}
-```"
-"The original insecure code does not perform a check on the type of account being updated, making it vulnerable to unauthorized updates.","```rs
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod type_cosplay_insecure {
-    use super::*;
-
-    pub fn update_user(ctx: Context<UpdateUser>) -> ProgramResult {
-        let user = User::try_from_slice(&ctx.accounts.user.data.borrow()).unwrap();
-
-        if ctx.accounts.user.owner != ctx.program_id {
-            return Err(ProgramError::IllegalOwner);
-        }
-
-        if user.authority != ctx.accounts.authority.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        msg!(""GM {}"", user.authority);
-
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct UpdateUser<'info> {
-    user: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct User {
-    authority: Pubkey,
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct Metadata {
-    account: Pubkey,
-}
-```","```rs
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod type_cosplay_secure {
-    use super::*;
-
-    pub fn update_user(ctx: Context<UpdateUser>) -> ProgramResult {
-        let user = User::try_from_slice(&ctx.accounts.user.data.borrow()).unwrap();
-
-        if ctx.accounts.user.owner != ctx.program_id {
-            return Err(ProgramError::IllegalOwner);
-        }
-
-        if user.authority != ctx.accounts.authority.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if user.discriminant != AccountDiscriminant::User {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        msg!(""GM {}"", user.authority);
-
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct UpdateUser<'info> {
-    user: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct User {
-    discriminant: AccountDiscriminant,
-    authority: Pubkey,
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct Metadata {
-    discriminant: AccountDiscriminant,
-    account: Pubkey,
-}
-
-#[derive(BorshSerialize, BorshDeserialize, PartialEq)]
-pub enum AccountDiscriminant {
-    User,
-    Metadata,
-}
-```"
-DuplicateMutableAccounts,"```rs
-use anchor_lang::prelude::*;
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod duplicate_mutable_accounts_insecure {
-    use super::*;
-
-    pub fn update(ctx: Context<Update>, a: u64, b: u64) -> ProgramResult {
-        let user_a = &mut ctx.accounts.user_a;
-        let user_b = &mut ctx.accounts.user_b;
-        user_a.data = a;
-        user_b.data = b;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct Update<'info> {
-    user_a: Account<'info, User>,
-    user_b: Account<'info, User>,
-}
-
-#[account]
-pub struct User {
-    data: u64,
-}
-```","```rs
-use anchor_lang::prelude::*;
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod duplicate_mutable_accounts_secure {
-    use super::*;
-
-    pub fn update(ctx: Context<Update>, a: u64, b: u64) -> ProgramResult {
-        if ctx.accounts.user_a.key() == ctx.accounts.user_b.key() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let user_a = &mut ctx.accounts.user_a;
-        let user_b = &mut ctx.accounts.user_b;
-        user_a.data = a;
-        user_b.data = b;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct Update<'info> {
-    user_a: Account<'info, User>,
-    user_b: Account<'info, User>,
-}
-
-#[account]
-pub struct User {
-    data: u64,
-}
-```"
-The original code does not check if the authority account is a signer before executing the function.,"```rs
-use anchor_lang::prelude::*;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod signer_authorization_insecure {
-    use super::*;
-
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        msg!(""GM {}"", ctx.accounts.authority.key().to_string());
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    authority: AccountInfo<'info>,
-}
-```","```rs
-use anchor_lang::prelude::*;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod signer_authorization_secure {
-    use super::*;
-
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        if !ctx.accounts.authority.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-        msg!(""GM {}"", ctx.accounts.authority.key().to_string());
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    authority: AccountInfo<'info>,
-}
-```"
-SysvarAddressChecking vulnerability arises from not properly verifying the address of a sysvar.,"```rs
-use anchor_lang::prelude::*;
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod insecure {
-    use super::*;
-    
-    pub fn check_sysvar_address(ctx: Context<CheckSysvarAddress>) -> Result<()> {
-        msg!(""Rent Key -> {}"", ctx.accounts.rent.key().to_string());
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct CheckSysvarAddress<'info> {
-    rent: AccountInfo<'info>,
-}
-```","```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::sysvar;
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod secure {
-    use super::*;
-    
-    pub fn check_sysvar_address(ctx: Context<CheckSysvarAddress>) -> Result<()> {
-        require_eq!(ctx.accounts.rent.key(), sysvar::rent::ID);
-        msg!(""Rent Key -> {}"", ctx.accounts.rent.key().to_string());
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct CheckSysvarAddress<'info> {
-    rent: AccountInfo<'info>,
-}
-```"
-,"```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program_error::ProgramError;
-use anchor_lang::solana_program::program_pack::Pack;
-use spl_token::state::Account as SplTokenAccount;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod owner_checks_insecure {
-    use super::*;
-
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        let token = SplTokenAccount::unpack(&ctx.accounts.token.data.borrow())?;
-
-        if ctx.accounts.authority.key != &token.owner {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        msg!(""Your account balance is: {}"", token.amount);
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    token: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-```","```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program_error::ProgramError;
-use anchor_lang::solana_program::program_pack::Pack;
-use spl_token::state::Account as SplTokenAccount;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod owner_checks_secure {
-    use super::*;
-
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        let token = SplTokenAccount::unpack(&ctx.accounts.token.data.borrow())?;
-
-        if ctx.accounts.authority.key != &token.owner {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        msg!(""Your account balance is: {}"", token.amount);
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    token: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-```"
-ArbitraryCpi,"```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod arbitrary_cpi_insecure {
-    use super::*;
-
-    pub fn cpi(ctx: Context<Cpi>, amount: u64) -> ProgramResult {
-        solana_program::program::invoke(
-            &spl_token::instruction::transfer(
-                ctx.accounts.token_program.key,
-                ctx.accounts.source.key,
-                ctx.accounts.destination.key,
-                ctx.accounts.authority.key,
-                &[],
-                amount,
-            )?,
-            &[ctx.accounts.source.clone(), ctx.accounts.destination.clone(), ctx.accounts.authority.clone()],
-        )
-    }
-}
-
-#[derive(Accounts)]
-pub struct Cpi<'info> {
-    source: AccountInfo<'info>,
-    destination: AccountInfo<'info>,
-    authority: AccountInfo<'info>,
-    token_program: AccountInfo<'info>,
-}
-```","```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod arbitrary_cpi_secure {
-    use super::*;
-
-    pub fn cpi_secure(ctx: Context<Cpi>, amount: u64) -> ProgramResult {
-        if &spl_token::ID != ctx.accounts.token_program.key {
-            return Err(ProgramError::IncorrectProgramId);
-        }
-
-        solana_program::program::invoke(
-            &spl_token::instruction::transfer(
-                ctx.accounts.token_program.key,
-                ctx.accounts.source.key,
-                ctx.accounts.destination.key,
-                ctx.accounts.authority.key,
-                &[],
-                amount,
-            )?,
-            &[ctx.accounts.source.clone(), ctx.accounts.destination.clone(), ctx.accounts.authority.clone()],
-        )
-    }
-}
-
-#[derive(Accounts)]
-pub struct Cpi<'info> {
-    source: AccountInfo<'info>,
-    destination: AccountInfo<'info>,
-    authority: AccountInfo<'info>,
-    token_program: AccountInfo<'info>,
-}
-```"
-Improper handling of account balance updates leading to potential loss of funds.,"```rs
-use anchor_lang::prelude::*;
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod closing_accounts_insecure {
-    use super::*;
-
-    pub fn close(ctx: Context<Close>) -> ProgramResult {
-        let dest_starting_lamports = ctx.accounts.destination.lamports();
-        *ctx.accounts.destination.lamports.borrow_mut() = dest_starting_lamports.checked_add(ctx.accounts.account.to_account_info().lamports()).unwrap();
-        ctx.accounts.account.to_account_info().lamports.borrow_mut() = 0;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct Close<'info> {
-    account: Account<'info, Data>,
-    destination: AccountInfo<'info>,
-}
-
-#[account]
-pub struct Data {
-    data: u64,
-}
-```","```rs
-use anchor_lang::__private::CLOSED_ACCOUNT_DISCRIMINATOR;
-use anchor_lang::prelude::*;
-use std::io::{Cursor, Write};
-use std::ops::DerefMut;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod closing_accounts_secure {
-    use super::*;
-
-    pub fn close(ctx: Context<Close>) -> ProgramResult {
-        let dest_starting_lamports = ctx.accounts.destination.lamports();
-        let account = ctx.accounts.account.to_account_info();
-        *ctx.accounts.destination.lamports.borrow_mut() = dest_starting_lamports.checked_add(account.lamports()).unwrap();
-        account.lamports.borrow_mut() = 0;
-        let mut data = account.try_borrow_mut_data()?;
-        for byte in data.deref_mut().iter_mut() {
-            *byte = 0;
-        }
-        let dst: &mut [u8] = &mut data;
-        let mut cursor = Cursor::new(dst);
-        cursor.write_all(&CLOSED_ACCOUNT_DISCRIMINATOR).unwrap();
-        Ok(())
-    }
-
-    pub fn force_defund(ctx: Context<ForceDefund>) -> ProgramResult {
-        let account = &ctx.accounts.account;
-        let data = account.try_borrow_data()?;
-        assert!(data.len() > 8);
-        let mut discriminator = [0u8; 8];
-        discriminator.copy_from_slice(&data[0..8]);
-        if discriminator != CLOSED_ACCOUNT_DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        let dest_starting_lamports = ctx.accounts.destination.lamports();
-        *ctx.accounts.destination.lamports.borrow_mut() = dest_starting_lamports.checked_add(account.lamports()).unwrap();
-        account.lamports.borrow_mut() = 0;
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct Close<'info> {
-    account: Account<'info, Data>,
-    destination: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct ForceDefund<'info> {
-    account: AccountInfo<'info>,
-    destination: AccountInfo<'info>,
-}
-
-#[account]
-pub struct Data {
-    data: u64,
-}
-```"
-Data mutation without proper validation checks can lead to initialization vulnerabilities.,"```rs
-use anchor_lang::prelude::*;
-
-#[program]
-pub mod initialization_insecure {
-    use super::*;
-
-    pub fn initialize(ctx: Context<Initialize>) -> ProgramResult {
-        let mut user = User::try_from_slice(&ctx.accounts.user.data.borrow()).unwrap();
-        user.authority = ctx.accounts.authority.key();
-        let mut storage = ctx.accounts.user.try_borrow_mut_data()?;
-        user.serialize(storage.deref_mut()).unwrap();
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct Initialize<'info> {
-    user: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct User {
-    authority: Pubkey,
-}
-```","```rs
-use anchor_lang::prelude::*;
-
-#[program]
-pub mod reinitialization_secure_recommended {
-    use super::*;
-
-    pub fn initialize(ctx: Context<Initialize>) -> ProgramResult {
-        let mut user = User::try_from_slice(&ctx.accounts.user.data.borrow()).unwrap();
-        if !user.discriminator {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        user.authority = ctx.accounts.authority.key();
-        user.discriminator = true;
-        let mut storage = ctx.accounts.user.try_borrow_mut_data()?;
-        user.serialize(storage.deref_mut()).unwrap();
-        msg!(""GM"");
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct Initialize<'info> {
-    user: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct User {
-    discriminator: bool,
-    authority: Pubkey,
-}
-```"
-AccountDataMatching vulnerability arises due to the lack of validation checks on the ownership of the token account before accessing and displaying sensitive information.,"```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program_pack::Pack;
-use spl_token::state::Account as SplTokenAccount;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod account_data_matching_insecure {
-    use super::*;
-
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        let token = SplTokenAccount::unpack(&ctx.accounts.token.data.borrow())?;
-        msg!(""Your account balance is: {}"", token.amount);
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    token: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-```","```rs
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program_pack::Pack;
-use spl_token::state::Account as SplTokenAccount;
-
-declare_id!(""Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"");
-
-#[program]
-pub mod account_data_matching_secure {
-    use super::*;
-
-    pub fn log_message(ctx: Context<LogMessage>) -> ProgramResult {
-        let token = SplTokenAccount::unpack(&ctx.accounts.token.data.borrow())?;
-        if ctx.accounts.authority.key != &token.owner {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        msg!(""Your account balance is: {}"", token.amount);
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct LogMessage<'info> {
-    token: AccountInfo<'info>,
-    authority: Signer<'info>,
-}
-```"
+    msg!(""Your account balance is: {}"", token.amount);
+    "
