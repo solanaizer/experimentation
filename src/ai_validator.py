@@ -2,9 +2,9 @@ import json
 import os
 
 import dotenv
-import requests
 from txtai.embeddings import Embeddings
 from build_embeddings import get_vulnerabilities
+import requests
 
 dotenv.load_dotenv()
 
@@ -26,19 +26,26 @@ def search_embeddings(query):
 
     data = get_vulnerabilities()
 
-    # Assuming 'results' returns a list of tuples (id, score), where 'id' corresponds to the 'id' in your data
     if results:
         most_relevant_id, score = results[0]
         print(f"Most Relevant ID: {most_relevant_id}, Score: {score}")
 
-        # Retrieve the full data for the most relevant result
-        # Assuming 'data' is available and contains your original dataset
         most_relevant_data = next(item for item in data if item['id'] == most_relevant_id)
-        print(f"Code Snippet: {most_relevant_data['code_snippet']}")
-        print(f"Description: {most_relevant_data['description']}")
-        print(f"Mitigation: {most_relevant_data['mitigation']}")
-        return most_relevant_data['mitigation']
 
+        print(f"RAG score: {score}")
+
+        rag_string = f"""Description: {most_relevant_data['description']}
+        
+Example insecure code which may help: 
+```rs
+{most_relevant_data['insecure_code']}
+```
+
+Example secure code which fixes the above (if needed):
+```rs
+{most_relevant_data['secure_code']}
+```"""
+        return rag_string
     else:
         raise ValueError('no rag data was retrieved')
 
@@ -70,10 +77,9 @@ The code to audit
 '{file_content}'
 ```
 
-The code below was found in the vector database and may provide a useful mitigation strategy for the code above
-```rs
+The below was found in the vector database and may provide a useful strategy to find issues in the code above
+
 '{rag}
-```
 
 NEVER EVER EVER RETURN ANYTHING ELSE THAN JSON. DON'T RETURN MARKDOWN
 """
